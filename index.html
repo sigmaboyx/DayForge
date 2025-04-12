@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planify ✨</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #111, #222);
+      color: #39ff14;
+      transition: all 0.5s ease;
+    }
+
+    body.dark {
+      background: #000;
+      color: #39ff14;
+    }
+
+    .container {
+      padding: 2rem;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    h1, h2 {
+      text-align: center;
+      text-shadow: 0 0 10px #39ff14;
+    }
+
+    .card {
+      background: rgba(0, 0, 0, 0.8);
+      padding: 1.5rem;
+      margin: 1rem 0;
+      border-radius: 1rem;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .card:nth-of-type(2) { box-shadow: 0 0 15px #39ff14; }
+    .card:nth-of-type(3) { box-shadow: 0 0 15px #1479ff; }
+    .card:nth-of-type(4) { box-shadow: 0 0 15px #ff1493; }
+
+    label, input, select, button {
+      display: block;
+      margin: 0.5rem 0;
+      font-size: 1.1rem;
+    }
+
+    input[type="text"], input[type="time"], select {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: none;
+      background: #111;
+      color: #39ff14;
+      box-shadow: 0 0 5px #39ff14 inset;
+    }
+
+    button {
+      background: #39ff14;
+      color: #000;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.2s;
+      margin: 0.2rem;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      background: #66ff66;
+    }
+
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      border-bottom: 1px solid #39ff14;
+    }
+
+    .task-item input[type="checkbox"] {
+      margin-right: 10px;
+    }
+
+    .task-list {
+      margin-top: 1rem;
+    }
+
+    .dark-mode-toggle {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #39ff14;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.8s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .days-checkboxes {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .days-checkboxes label {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✨ Planify – Dein Tagesplaner</h1>
+
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙</button>
+
+    <div class="card">
+      <label for="dayChoice">Tag wählen:</label>
+      <select id="dayChoice">
+        <option value="heute">Heute</option>
+        <option value="morgen">Morgen</option>
+      </select>
+
+      <label for="taskInput">Neue Aufgabe:</label>
+      <input type="text" id="taskInput" placeholder="Was willst du tun?" />
+
+      <label for="taskTime">Zeit der Aufgabe:</label>
+      <input type="time" id="taskTime" />
+
+      <div class="days-checkboxes">
+        <label><input type="checkbox" value="Montag" /> Mo</label>
+        <label><input type="checkbox" value="Dienstag" /> Di</label>
+        <label><input type="checkbox" value="Mittwoch" /> Mi</label>
+        <label><input type="checkbox" value="Donnerstag" /> Do</label>
+        <label><input type="checkbox" value="Freitag" /> Fr</label>
+        <label><input type="checkbox" value="Samstag" /> Sa</label>
+        <label><input type="checkbox" value="Sonntag" /> So</label>
+      </div>
+
+      <button onclick="addTask()">+ Aufgabe hinzufügen</button>
+    </div>
+
+    <div class="card">
+      <h2>📝 Aufgaben für heute</h2>
+      <button onclick="selectAll('taskList')">Alle auswählen</button>
+      <button onclick="deleteSelected('taskList')">Ausgewählte löschen</button>
+      <div id="taskList" class="task-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>🌜 Aufgaben für morgen</h2>
+      <button onclick="selectAll('tomorrowList')">Alle auswählen</button>
+      <button onclick="deleteSelected('tomorrowList')">Ausgewählte löschen</button>
+      <div id="tomorrowList" class="task-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>✔ Erledigte Aufgaben</h2>
+      <div id="completedList" class="completed-list"></div>
+    </div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    let completedTasks = JSON.parse(localStorage.getItem("completedTasks")) || [];
+
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    function saveToStorage() {
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      localStorage.setItem("completedTasks", JSON.stringify(completedTasks));
+    }
+
+    function renderTasks() {
+      const taskList = document.getElementById("taskList");
+      const completedList = document.getElementById("completedList");
+      const tomorrowList = document.getElementById("tomorrowList");
+
+      taskList.innerHTML = "";
+      completedList.innerHTML = "";
+      tomorrowList.innerHTML = "";
+
+      const today = new Date();
+      const tomorrow = new Date(today.getTime() + 86400000);
+      const todayName = today.toLocaleDateString("de-DE", { weekday: "long" });
+      const tomorrowName = tomorrow.toLocaleDateString("de-DE", { weekday: "long" });
+
+      let tomorrowTasks = [];
+
+      tasks.forEach((task, index) => {
+        if (task.days.includes(todayName)) {
+          const div = document.createElement("div");
+          div.className = "task-item fade-in";
+          div.innerHTML = `<input type='checkbox' class='select-task' data-index='${index}'><span><strong>${task.time}</strong> - ${task.text}</span><div><button onclick="completeTask(${index})">✔</button><button onclick="deleteTask(${index})">🗑</button></div>`;
+          taskList.appendChild(div);
+          scheduleNotification(task);
+        } else if (task.days.includes(tomorrowName)) {
+          tomorrowTasks.push({ ...task, originalIndex: index });
+        }
+      });
+
+      tomorrowTasks.forEach((task) => {
+        const div = document.createElement("div");
+        div.className = "task-item fade-in";
+        div.innerHTML = `<input type='checkbox' class='select-task-tomorrow' data-index='${task.originalIndex}'><span><strong>${task.time}</strong> - ${task.text}</span><button onclick="deleteTask(${task.originalIndex})">🗑</button>`;
+        tomorrowList.appendChild(div);
+      });
+
+      completedTasks.forEach((task, index) => {
+        const div = document.createElement("div");
+        div.className = "task-item fade-in";
+        div.innerHTML = `<span>✔ <strong>${task.time}</strong> - ${task.text}</span> <button onclick="undoTask(${index})">↩</button> <button onclick="deleteCompleted(${index})">🗑</button>`;
+        completedList.appendChild(div);
+      });
+    }
+
+    function addTask() {
+      const text = document.getElementById("taskInput").value;
+      const time = document.getElementById("taskTime").value;
+      const days = Array.from(document.querySelectorAll(".days-checkboxes input:checked")).map(cb => cb.value);
+
+      if (!text || !time || days.length === 0) return alert("Bitte fülle alle Felder aus");
+
+      tasks.push({ text, time, days });
+      document.getElementById("taskInput").value = "";
+      document.getElementById("taskTime").value = "";
+      document.querySelectorAll(".days-checkboxes input").forEach(cb => cb.checked = false);
+      saveToStorage();
+      renderTasks();
+    }
+
+    function completeTask(index) {
+      const task = tasks.splice(index, 1)[0];
+      completedTasks.push(task);
+      saveToStorage();
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      saveToStorage();
+      renderTasks();
+    }
+
+    function undoTask(index) {
+      const task = completedTasks.splice(index, 1)[0];
+      tasks.push(task);
+      saveToStorage();
+      renderTasks();
+    }
+
+    function deleteCompleted(index) {
+      completedTasks.splice(index, 1);
+      saveToStorage();
+      renderTasks();
+    }
+
+    function scheduleNotification(task) {
+      const now = new Date();
+      const taskTime = new Date();
+      const [hours, minutes] = task.time.split(":").map(Number);
+      taskTime.setHours(hours);
+      taskTime.setMinutes(minutes - 5);
+      taskTime.setSeconds(0);
+
+      const timeUntilNotification = taskTime.getTime() - now.getTime();
+
+      if (timeUntilNotification > 0 && Notification.permission === "granted") {
+        setTimeout(() => {
+          new Notification("🔔 Erinnerung", {
+            body: `In 5 Minuten: ${task.text}`,
+            icon: "https://cdn-icons-png.flaticon.com/512/727/727399.png"
+          });
+        }, timeUntilNotification);
+      }
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+      document.querySelector(".dark-mode-toggle").textContent = document.body.classList.contains("dark") ? "🌞" : "🌙";
+    }
+
+    function selectAll(listId) {
+      const checkboxes = document.querySelectorAll(`#${listId} input[type='checkbox']`);
+      checkboxes.forEach(cb => cb.checked = true);
+    }
+
+    function deleteSelected(listId) {
+      const checkboxes = document.querySelectorAll(`#${listId} input[type='checkbox']:checked`);
+      const indexes = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute("data-index"))).sort((a, b) => b - a);
+      indexes.forEach(index => {
+        tasks.splice(index, 1);
+      });
+      saveToStorage();
+      renderTasks();
+    }
+
+    renderTasks();
+  </script>
+</body>
+</html>
